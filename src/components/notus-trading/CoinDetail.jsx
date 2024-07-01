@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom';
-import useAxios from '../hooks/useAxios';
+import useAxios from '../../hooks/useAxios';
 import Skeleton from './Skeleton';
-import { currencyFormat } from "../utils";
+import { currencyFormat } from "../../utils";
 import {
   Message,
   Button,
@@ -31,8 +31,6 @@ import {
   TableHeaderCell,
   TableBody,
   TableCell,
-  TableFooter,
-  Label
 } from 'semantic-ui-react'
 
 
@@ -70,10 +68,12 @@ const CoinDetail = () => {
     <GridColumn>
 
     <Form size='large'>
+        <span> NOT Balance: </span>
         <Segment stacked>
+        <Image src='morpheus-red.png' wrapped ui={false} />
           <Form.Input 
           fluid icon='money' iconPosition='left' 
-          placeholder='Amount of AO-CRED' 
+          placeholder='Amount of NOT' 
           
           />
           <Form.Input
@@ -81,7 +81,7 @@ const CoinDetail = () => {
             icon='calendar alternate outline'
             iconPosition='left'
             placeholder='Expiry in Days.'
-            type='password'
+            type='value'
           />
             <Divider/>
             <span> Payoff :{response.sentiment_votes_down_percentage}% </span>
@@ -94,10 +94,11 @@ const CoinDetail = () => {
     </GridColumn>
     <GridColumn>
     <Form size='large'>
+        <Button size='mini' primary> Claim NOT.</Button>
         <Segment stacked>
           <Form.Input 
           fluid icon='money' iconPosition='left' 
-          placeholder='Amount of AO-CRED' 
+          placeholder='Amount of NOT' 
           
           />
           <Form.Input
@@ -105,7 +106,7 @@ const CoinDetail = () => {
             icon='calendar alternate outline'
             iconPosition='left'
             placeholder='Expiry in Days.'
-            type='password'
+            type='value'
           />
           <Divider/>
           <span> Payoff :{response.sentiment_votes_up_percentage} % </span>
@@ -118,7 +119,7 @@ const CoinDetail = () => {
   </Grid>
 
       <Header as='h2' color='teal' textAlign='center'>
-        <Image src='/logox.png' />  My trades.
+        <Image src='/logox.png' /> Trades.
       </Header>
       <Table celled>
     <TableHeader>

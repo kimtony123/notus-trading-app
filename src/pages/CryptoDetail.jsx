@@ -1,5 +1,6 @@
-import CoinDetail from "../components/CoinDetail"
-import HistoryChart from "../components/HistoryChart"
+
+import HistoryChart from "../components/notus-trading/HistoryChart"
+import CoinDetail from "../components/notus-trading/CoinDetail"
 
 const CryptoDetail = () => {
   return (

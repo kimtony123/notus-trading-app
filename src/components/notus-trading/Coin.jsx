@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import { TrendingDown, TrendingUp } from "../icons/icons";
-import { currencyFormat } from "../utils";
+import { TrendingDown, TrendingUp } from "../../icons/icons";
+import { currencyFormat } from "../../utils";
 
 const Coin = ({ coin }) => {
   console.log(coin);
