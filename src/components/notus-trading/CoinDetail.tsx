@@ -456,7 +456,7 @@ const CoinDetail: React.FC = () => {
                 <Divider />
                 <Form.Input
                   type="number"
-                  name="betAmountCall"
+                  name="betAmountPut"
                   value={betAmountPut}
                   onChange={handleInputChange}
                   icon="money"
