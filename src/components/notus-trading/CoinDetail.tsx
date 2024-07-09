@@ -465,7 +465,7 @@ const CoinDetail: React.FC = () => {
                 />
                 <Form.Input
                   fluid
-                  name="expiryDayCall"
+                  name="expiryDayPut"
                   icon="calendar alternate outline"
                   iconPosition="left"
                   placeholder="Expiry in Minutes"
