@@ -475,7 +475,7 @@ const CoinDetail: React.FC = () => {
                 />
                 <Divider />
                 <span>Payoff: 60 %</span>
-                <Button color="red" fluid size="small">
+                <Button onClick={tradePut} color="red" fluid size="small">
                   Put
                 </Button>
               </Segment>
