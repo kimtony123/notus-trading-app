@@ -236,7 +236,7 @@ const CoinDetail: React.FC = () => {
             name: "ContractExpiry",
             value: String(Date.now() + Number(expiryDayPut) * 60),
           },
-          { name: "BetAmountPut", value: String(Number(betAmountPut) * 1000) },
+          { name: "BetAmountCall", value: String(Number(betAmountPut) * 1000) },
         ],
         signer: createDataItemSigner(window.arweaveWallet),
       });
