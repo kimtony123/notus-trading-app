@@ -1,23 +1,71 @@
 local json = require("json")
 local math = require("math")
 
+_0RBIT = "BaMK1dfayo75s3q1ow6AO64UDpD9SEFbeE8xYrY2fyQ"
+_0RBT_TOKEN = "BUhZLMwQ6yZHguLtJYA5lLUa9LQzLXMXRfaq9FVcPJc"
+
+BASE_URL = "https://api.coingecko.com/api/v3/simple/price"
+FEE_AMOUNT = "1000000000000" -- 1 $0RBT
+
+TOKEN_PRICES = TOKEN_PRICES or {}
+LOGS = LOGS or {}
+Balances = Balances or {}
+
 -- Credentials token
- AOC = "HmOxNfr7ZCmT7hhx1LTO7765b-NGoT6lhha_ffjaCn4"
+AOC = "pdKYJSk3n2XuFSt6AX-A7n_DhMmTWxCH3W8dxGBPXjM"
 
 -- Table to track addresses that have requested tokens
 RequestedAddresses = RequestedAddresses or {}
 
+openTrades = openTrades or {}
+expiredTrades = expiredTrades or {}
+closedTrades = closedTrades or {}
+winners = winners or {}
 
-Trades = Trades or {}
+function fetchPrice()
+    local url
+    local token_ids = ""
 
--- Because json.encode(Proposals) just returns [object Object] instead of a proper string, likely because
--- I am being a bit naughty and storing functions directly in that table in order to load them into Handlers.list
+    for _, v in pairs(TOKEN_PRICES) do
+        token_ids = token_ids .. v.coingecko_id .. ","
+    end
+
+    url = BASE_URL .. "?ids=" .. token_ids .. "&vs_currencies=usd"
+
+    Send({
+        Target = _0RBT_TOKEN,
+        Action = "Transfer",
+        Recipient = _0RBIT,
+        Quantity = FEE_AMOUNT,
+        ["X-Url"] = url,
+        ["X-Action"] = "Get-Real-Data"
+    })
+    print("GET Request sent to the 0rbit process.")
+end
+
+function receiveData(msg)
+    local res = json.decode(msg.Data)
+    for k, v in pairs(res) do
+        TOKEN_PRICES[k].price = tonumber(v.usd)
+        TOKEN_PRICES[k].last_update_timestamp = msg.Timestamp
+    end
+end
+
+function getTokenPrice(msg)
+    local token = msg.Tags.Token
+    local price = TOKEN_PRICES[token].price
+    if price == 0 then
+        Handlers.utils.reply("Price not available!!!")(msg)
+    else
+        Handlers.utils.reply(tostring(price))(msg)
+    end
+end
+
 function tableToJson(tbl)
     local result = {}
     for key, value in pairs(tbl) do
         local valueType = type(value)
         if valueType == "table" then
-            -- Recursive call for nested tables
             value = tableToJson(value)
             table.insert(result, string.format('"%s":%s', key, value))
         elseif valueType == "string" then
@@ -33,18 +81,27 @@ function tableToJson(tbl)
     return json
 end
 
-
+-- Function to check if the trade is a winner
+function checkTradeWinner(trade, closingPrice)
+    local winner = false
+    if trade.ContractType == "Call" and closingPrice > trade.BetAmount then
+        winner = true
+    elseif trade.ContractType == "Put" and closingPrice < trade.BetAmount then
+        winner = true
+    end
+    return winner
+end
 
 -- Trade Handler Function
 Handlers.add(
     "trade",
     Handlers.utils.hasMatchingTag("Action", "trade"),
     function(m)
-        if m.Tags.TradeId and m.Tags.CreatedTime and m.Tags.Name and m.Tags.AssetPrice and m.Tags.ContractType
-            and m.Tags.AssetId and m.Tags.ContractStatus and m.Tags.ContractExpiry and m.Tags.BetAmountCall then
+        if m.Tags.TradeId and m.Tags.CreatedTime and m.Tags.AssetId and m.Tags.AssetPrice and m.Tags.ContractType
+            and m.Tags.ContractStatus and m.Tags.ContractExpiry and m.Tags.BetAmount then
 
             -- Convert BetAmount to a number
-            local qty = tonumber(m.Tags.BetAmountCall)
+            local qty = tonumber(m.Tags.BetAmount)
 
             -- Check if qty is nil and handle the error
             if qty == nil then
@@ -62,7 +119,7 @@ Handlers.add(
                 print("Transferred: " .. qty .. " successfully to " .. AOC)
 
                 -- Create trade record
-                Trades[m.Tags.TradeId] = {
+                openTrades[m.Tags.TradeId] = {
                     TradeId = m.Tags.TradeId,
                     Name = m.Tags.Name,
                     AssetId = m.Tags.AssetId,
@@ -75,7 +132,7 @@ Handlers.add(
                 }
 
                 -- Print the Trades table for debugging
-                print("Trades table after update: " .. tableToJson(Trades))
+                print("Trades table after update: " .. tableToJson(openTrades))
 
                 ao.send({ Target = m.From, Data = "Successfully Created Trade" })
             else
@@ -90,8 +147,6 @@ Handlers.add(
         end
     end
 )
-
-
 
 -- RequestTokens Handler Function
 Handlers.add(
@@ -136,6 +191,69 @@ Handlers.add(
     "Trades",
     Handlers.utils.hasMatchingTag("Action", "Trades"),
     function(m)
-        ao.send({ Target = m.From, Data = tableToJson(Trades) })
+        ao.send({ Target = m.From, Data = tableToJson(openTrades) })
     end
 )
+
+Handlers.add('getTime', Handlers.utils.hasMatchingTag('Action', 'getTime'), function(msg)
+    currentTime = msg.Timestamp
+    -- Process open trades to find expired ones
+    for tradeId, trade in pairs(openTrades) do
+        if currentTime > trade.ContractExpiry then
+            expiredTrades[tradeId] = trade
+            openTrades[tradeId] = nil
+        end
+    end
+    -- Process expired trades to get closing prices
+    for tradeId, trade in pairs(expiredTrades) do
+        fetchPrice()
+        local priceMsg = { Tags = { Token = trade.AssetId } }
+        getTokenPrice(priceMsg)
+        trade.ClosingPrice = TOKEN_PRICES[trade.AssetId].price
+        trade.ClosingTime = currentTime
+        -- Check if the trade is a winner
+        if checkTradeWinner(trade, trade.ClosingPrice) then
+            winners[tradeId] = trade
+        end
+        closedTrades[tradeId] = trade
+        expiredTrades[tradeId] = nil
+    end
+    ao.send({
+        Target = msg.From,
+        Action = 'Message',
+        Data = currentTime,
+    })
+end)
+
+Handlers.add(
+    "GetTokenPrice",
+    Handlers.utils.hasMatchingTag("Action", "Get-Token-Price"),
+    getTokenPrice
+)
+
+Handlers.add(
+    "FetchPrice",
+    Handlers.utils.hasMatchingTag("Action", "Fetch-Price"),
+    fetchPrice
+)
+
+-- Function to periodically call getTime every second
+function periodicGetTime()
+    ao.send({
+        Target = ao.id,
+        Action = 'getTime',
+    })
+
+end
+
+-- Function to initialize the app
+function initializeApp()
+    openTrades = openTrades or {}
+    winners = winners or {}
+    periodicGetTime()
+    print("Options Trading App initialized.")
+end
+
+-- Start the periodic getTime calls
+initializeApp()
+
