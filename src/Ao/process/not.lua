@@ -207,6 +207,7 @@ Handlers.add('getTime',
         for tradeId, trade in pairs(openTrades) do
             local contractExp = tonumber(trade.ContractExpiry)
             if currentTime > contractExp then
+                trade.ContractStatus = "Closed"
                 fetchPrice()
                 local priceMsg = { Tags = { Token = trade.AssetId } }
                 getTokenPrice(priceMsg)
@@ -217,7 +218,6 @@ Handlers.add('getTime',
                     winners[tradeId] = trade
                 end
                 sendRewards()
-                trade.ContractStatus = "Closed"
                 expiredTrades[tradeId] = trade
                 openTrades[tradeId] = nil
             end
