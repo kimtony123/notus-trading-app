@@ -518,7 +518,7 @@ const CoinDetail: React.FC = () => {
                 ContractStatus
               </div>
               <div className="table-cell border-b font-medium p-4 pl-8 pt-0 pb-3 text-slate-400 blue:text-slate-200 text-left">
-                ClosinTime
+                ClosingTime
               </div>
               <div className="table-cell border-b font-medium p-4 pl-8 pt-0 pb-3 text-slate-400 blue:text-slate-200 text-left">
                 ClosingPrice
