@@ -208,17 +208,22 @@ Handlers.add('getTime',
             local contractExp = tonumber(trade.ContractExpiry)
             if currentTime > contractExp then
                 fetchPrice()
-                local closingPrice = getTokenPrice(trade.AssetId)
-                trade.ClosingPrice = closingPrice
+                local priceMsg = { Tags = { Token = trade.AssetId } }
+                getTokenPrice(priceMsg)
+                trade.ClosingPrice = TOKEN_PRICES[trade.AssetId].price
                 trade.ClosingTime = currentTime
                 -- Check if the trade is a winner
-                if checkTradeWinner(trade, closingPrice) then
+                if checkTradeWinner(trade, trade.ClosingPrice) then
                     winners[tradeId] = trade
                 end
                 sendRewards()
                 trade.ContractStatus = "Closed"
                 expiredTrades[tradeId] = trade
                 openTrades[tradeId] = nil
+                expiredTrades[tradeId] = {
+                    ClosingPrice = trade.ClosingPrice,
+                  ClosingTime = trade.ClosingTime
+                }
             end
         end
         ao.send({ Target = msg.From, Action = 'Message', Data = currentTime })
