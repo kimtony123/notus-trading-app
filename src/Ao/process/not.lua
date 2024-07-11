@@ -19,7 +19,6 @@ RequestedAddresses = RequestedAddresses or {}
 
 openTrades = openTrades or {}
 expiredTrades = expiredTrades or {}
-closedTrades = closedTrades or {}
 winners = winners or {}
 
 function fetchPrice()
@@ -51,14 +50,9 @@ function receiveData(msg)
     end
 end
 
-function getTokenPrice(msg)
-    local token = msg.Tags.Token
-    local price = TOKEN_PRICES[token].price
-    if price == 0 then
-        Handlers.utils.reply("Price not available!!!")(msg)
-    else
-        Handlers.utils.reply(tostring(price))(msg)
-    end
+function getTokenPrice(token)
+    local price = TOKEN_PRICES[token] and TOKEN_PRICES[token].price or 0
+    return price
 end
 
 function tableToJson(tbl)
@@ -84,12 +78,22 @@ end
 -- Function to check if the trade is a winner
 function checkTradeWinner(trade, closingPrice)
     local winner = false
-    if trade.ContractType == "Call" and closingPrice > trade.BetAmount then
+    if trade.ContractType == "Call" and closingPrice > tonumber(trade.AssetPrice) then
         winner = true
-    elseif trade.ContractType == "Put" and closingPrice < trade.BetAmount then
+    elseif trade.ContractType == "Put" and closingPrice < tonumber(trade.AssetPrice) then
         winner = true
     end
     return winner
+end
+
+function sendRewards()
+    for tradeId, trade in pairs(winners) do
+        local payout = trade.BetAmount * 1.70
+        Balances[trade.TradeId] = Balances[trade.TradeId] + payout
+        print("Transferred: " .. payout .. " successfully to " .. trade.TradeId)
+    end
+    -- Clear winners list after sending rewards
+    winners = {}
 end
 
 -- Trade Handler Function
@@ -195,65 +199,69 @@ Handlers.add(
     end
 )
 
-Handlers.add('getTime', Handlers.utils.hasMatchingTag('Action', 'getTime'), function(msg)
-    currentTime = msg.Timestamp
-    -- Process open trades to find expired ones
-    for tradeId, trade in pairs(openTrades) do
-        if currentTime > trade.ContractExpiry then
-            expiredTrades[tradeId] = trade
-            openTrades[tradeId] = nil
+Handlers.add('getTime',
+    Handlers.utils.hasMatchingTag('Action', 'getTime'),
+    function(msg)
+        currentTime = msg.Timestamp
+        -- Process open trades to find expired ones
+        for tradeId, trade in pairs(openTrades) do
+            local contractExp = tonumber(trade.ContractExpiry)
+            if currentTime > contractExp then
+                trade.ContractStatus = "Closed"
+                fetchPrice()
+                local closingPrice = getTokenPrice(trade.AssetId)
+                trade.ClosingPrice = closingPrice
+                trade.ClosingTime = currentTime
+                -- Check if the trade is a winner
+                if checkTradeWinner(trade, closingPrice) then
+                    winners[tradeId] = trade
+                end
+                sendRewards()
+                expiredTrades[tradeId] = trade
+                openTrades[tradeId] = nil
+            end
         end
+        ao.send({ Target = msg.From, Action = 'Message', Data = currentTime })
     end
-    -- Process expired trades to get closing prices
-    for tradeId, trade in pairs(expiredTrades) do
-        fetchPrice()
-        local priceMsg = { Tags = { Token = trade.AssetId } }
-        getTokenPrice(priceMsg)
-        trade.ClosingPrice = TOKEN_PRICES[trade.AssetId].price
-        trade.ClosingTime = currentTime
-        -- Check if the trade is a winner
-        if checkTradeWinner(trade, trade.ClosingPrice) then
-            winners[tradeId] = trade
-        end
-        closedTrades[tradeId] = trade
-        expiredTrades[tradeId] = nil
-    end
-    ao.send({
-        Target = msg.From,
-        Action = 'Message',
-        Data = currentTime,
-    })
-end)
+)
 
 Handlers.add(
     "GetTokenPrice",
     Handlers.utils.hasMatchingTag("Action", "Get-Token-Price"),
-    getTokenPrice
+    function(m)
+        local token = m.Tags.Token
+        local price = getTokenPrice(token)
+        if price == 0 then
+            Handlers.utils.reply("Price not available!!!")(m)
+        else
+            Handlers.utils.reply(tostring(price))(m)
+        end
+    end
 )
 
 Handlers.add(
     "FetchPrice",
     Handlers.utils.hasMatchingTag("Action", "Fetch-Price"),
-    fetchPrice
+    function(m)
+        fetchPrice()
+    end
 )
 
 -- Function to periodically call getTime every second
 function periodicGetTime()
-    ao.send({
-        Target = ao.id,
-        Action = 'getTime',
-    })
-
+    ao.send({ Target = ao.id, Action = 'getTime' })
 end
 
 -- Function to initialize the app
 function initializeApp()
     openTrades = openTrades or {}
+    expiredTrades = expiredTrades or {}
     winners = winners or {}
-    periodicGetTime()
+    Balances = Balances or {}
+
     print("Options Trading App initialized.")
 end
 
 -- Start the periodic getTime calls
 initializeApp()
-
+periodicGetTime()
