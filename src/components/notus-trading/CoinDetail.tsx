@@ -65,6 +65,8 @@ interface TradeDetails {
   AssetId: string;
   ContractExpiry: string;
   CreatedTime: string;
+  ClosingPrice: number;
+  ClosingTime: number;
 }
 
 interface Trade {
@@ -77,6 +79,8 @@ interface Trade {
   AssetId: string;
   ContractExpiry: string;
   CreatedTime: string;
+  ClosingPrice: number;
+  ClosingTime: number;
 }
 
 // Define the CoinDetail component
@@ -300,6 +304,8 @@ const CoinDetail: React.FC = () => {
               ContractExpiry: typedDetails.ContractExpiry,
               TradeId: typedDetails.TradeId,
               CreatedTime: typedDetails.CreatedTime,
+              ClosingTime: typedDetails.ClosingTime,
+              ClosingPrice: typedDetails.ClosingPrice,
             };
           });
           setTrades(proposalsData);
@@ -511,6 +517,12 @@ const CoinDetail: React.FC = () => {
               <div className="table-cell border-b font-medium p-4 pl-8 pt-0 pb-3 text-slate-400 blue:text-slate-200 text-left">
                 ContractStatus
               </div>
+              <div className="table-cell border-b font-medium p-4 pl-8 pt-0 pb-3 text-slate-400 blue:text-slate-200 text-left">
+                ClosinTime
+              </div>
+              <div className="table-cell border-b font-medium p-4 pl-8 pt-0 pb-3 text-slate-400 blue:text-slate-200 text-left">
+                ClosingPrice
+              </div>
             </div>
           </div>
           <div className="table-row-group bg-white dark:bg-slate-800">
@@ -536,6 +548,12 @@ const CoinDetail: React.FC = () => {
                 </div>
                 <div className="table-cell border-b border-slate-100 p-4 pl-8 text-slate-500 dark:text-slate-400">
                   {Trade.ContractStatus}
+                </div>
+                <div className="table-cell border-b border-slate-100 p-4 pl-8 text-slate-500 dark:text-slate-400">
+                  {Trade.ClosingTime}
+                </div>
+                <div className="table-cell border-b border-slate-100 p-4 pl-8 text-slate-500 dark:text-slate-400">
+                  {Trade.ClosingPrice}
                 </div>
               </div>
             ))}
