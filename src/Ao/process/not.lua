@@ -220,10 +220,6 @@ Handlers.add('getTime',
                 trade.ContractStatus = "Closed"
                 expiredTrades[tradeId] = trade
                 openTrades[tradeId] = nil
-                expiredTrades[tradeId] = {
-                    ClosingPrice = trade.ClosingPrice,
-                  ClosingTime = trade.ClosingTime
-                }
             end
         end
         ao.send({ Target = msg.From, Action = 'Message', Data = currentTime })
